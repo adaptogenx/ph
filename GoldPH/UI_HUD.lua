@@ -714,7 +714,7 @@ function GoldPH_HUD:Initialize()
     -- Start screen (shown when no session active)
     --------------------------------------------------
     local startScreen = CreateFrame("Frame", nil, hudFrame)
-    startScreen:SetSize(266, 54)  -- Match minimized HUD size (266×54) to prevent vertical jump
+    startScreen:SetSize(100, 54)  -- Compact width for minimal screen real estate when inactive
     startScreen:SetPoint("TOPLEFT", hudFrame, "TOPLEFT", 0, 0)
     startScreen:SetFrameLevel(hudFrame:GetFrameLevel() + 1)
 
@@ -725,19 +725,37 @@ function GoldPH_HUD:Initialize()
     startLogo:SetTextColor(PH_TEXT_PRIMARY[1], PH_TEXT_PRIMARY[2], PH_TEXT_PRIMARY[3])
     startLogo:SetFont("Fonts\\FRIZQT__.TTF", 12, "")  -- Match active HUD title size (12px)
 
-    -- Start button (right side, matching active HUD button layout)
-    local startBtn = CreateFrame("Button", nil, startScreen)
-    startBtn:SetSize(60, 24)  -- Larger clickable area
-    startBtn:SetPoint("TOPRIGHT", startScreen, "TOPRIGHT", -PADDING, -PADDING)
-    startBtn:SetNormalTexture("Interface\\Buttons\\UI-Button-Up")
-    startBtn:SetPushedTexture("Interface\\Buttons\\UI-Button-Down")
-    startBtn:SetHighlightTexture("Interface\\Buttons\\UI-PlusButton-Hilight", "ADD")
+    -- Start button (text button with border, right side)
+    local startBtn = CreateFrame("Button", nil, startScreen, "BackdropTemplate")
+    startBtn:SetSize(50, 20)
+    startBtn:SetPoint("TOPRIGHT", startScreen, "TOPRIGHT", -PADDING, -17)  -- Centered vertically in 54px frame
+    startBtn:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 12,
+        insets = {left = 2, right = 2, top = 2, bottom = 2},
+    })
+    startBtn:SetBackdropColor(PH_BG_DARK[1], PH_BG_DARK[2], PH_BG_DARK[3], 0.9)
+    startBtn:SetBackdropBorderColor(PH_BORDER_BRONZE[1], PH_BORDER_BRONZE[2], PH_BORDER_BRONZE[3], 0.8)
 
     -- Start button text
-    local startText = startBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    startText:SetPoint("CENTER", 0, 0)
-    startText:SetText("Start")
-    startText:SetTextColor(PH_ACCENT_GOOD[1], PH_ACCENT_GOOD[2], PH_ACCENT_GOOD[3])
+    local startBtnText = startBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    startBtnText:SetPoint("CENTER", 0, 0)
+    startBtnText:SetText("Start")
+    startBtnText:SetTextColor(PH_ACCENT_GOOD[1], PH_ACCENT_GOOD[2], PH_ACCENT_GOOD[3])
+
+    -- Hover effect
+    startBtn:SetScript("OnEnter", function(self)
+        self:SetBackdropBorderColor(PH_ACCENT_GOOD[1], PH_ACCENT_GOOD[2], PH_ACCENT_GOOD[3], 1.0)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Click here to start a session, or type \"/ph start\" to get started. \"/ph help\" to learn more", nil, nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+
+    startBtn:SetScript("OnLeave", function(self)
+        self:SetBackdropBorderColor(PH_BORDER_BRONZE[1], PH_BORDER_BRONZE[2], PH_BORDER_BRONZE[3], 0.8)
+        GameTooltip:Hide()
+    end)
 
     startBtn:SetScript("OnClick", function()
         local ok, message = GoldPH_SessionManager:StartSession()
@@ -746,16 +764,6 @@ function GoldPH_HUD:Initialize()
             GoldPH_Settings.hudMinimized = true  -- Start minimized
             GoldPH_HUD:Update()
         end
-    end)
-
-    startBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Click here to start a session, or type \"/ph start\" to get started. \"/ph help\" to learn more", nil, nil, nil, nil, true)
-        GameTooltip:Show()
-    end)
-
-    startBtn:SetScript("OnLeave", function()
-        GameTooltip:Hide()
     end)
 
     startScreen:Hide()  -- Initially hidden
@@ -1442,7 +1450,7 @@ function GoldPH_HUD:Update()
 
         -- Keep HUD frame visible (for start screen)
         hudFrame:Show()
-        hudFrame:SetSize(266, 54)  -- Match minimized HUD size to prevent vertical jump
+        hudFrame:SetSize(100, 54)  -- Compact start screen (minimal screen real estate)
         return
     end
 
@@ -1460,6 +1468,18 @@ function GoldPH_HUD:Update()
     -- Show HUD if session active
     if not hudFrame:IsShown() then
         hudFrame:Show()
+    end
+
+    -- Ensure frame is properly sized for active state (minimized or expanded)
+    -- This is critical when transitioning from start screen (100px) to active HUD (266px minimized)
+    local isMinimized = GoldPH_Settings.hudMinimized
+    if isMinimized then
+        -- Minimized: set to micro-bar width
+        hudFrame:SetWidth(266)
+        hudFrame:SetHeight(FRAME_HEIGHT_MINI)
+    else
+        -- Expanded: width will be set by ApplyMinimizeState, but ensure we're not stuck at 100px
+        hudFrame:SetWidth(FRAME_WIDTH_EXPANDED)
     end
 
     -- Get metrics
